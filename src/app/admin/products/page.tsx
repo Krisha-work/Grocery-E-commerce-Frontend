@@ -1,21 +1,32 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { ProductService, Product, ProductQueryParams } from '../../../lib/api/products';
+import { ProductService, Product, ProductFilterParams } from '../../../lib/api/products';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+
+interface Pagination {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+interface ExtendedProductFilterParams extends ProductFilterParams {
+  sort?: string;
+}
 
 const ProductsPage = () => {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<ProductQueryParams>({
+  const [filters, setFilters] = useState<ExtendedProductFilterParams>({
     page: 1,
     limit: 10,
     sort: 'createdAt'
   });
-  const [pagination, setPagination] = useState({
+  const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 10,
     totalItems: 0,
@@ -29,15 +40,15 @@ const ProductsPage = () => {
       
       try {
         const response = await ProductService.getProducts(filters);
-        
-        if (response.success && response.data) {
-          setProducts(response.data);
-          if (response.pagination) {
-            setPagination(response.pagination);
-          }
-        } else {
-          setError(response.message);
-        }
+        const total = response.total || 0;
+        const limit = filters.limit || 10;
+        setProducts(response.products);
+        setPagination({
+          page: filters.page || 1,
+          limit,
+          totalItems: total,
+          totalPages: Math.ceil(total / limit)
+        });
       } catch (err) {
         setError('An unknown error occurred');
       } finally {
@@ -53,7 +64,7 @@ const ProductsPage = () => {
     setFilters(prev => ({
       ...prev,
       [name]: value,
-      page: 1 // Reset to first page when filters change
+      page: 1
     }));
   };
 
@@ -68,16 +79,12 @@ const ProductsPage = () => {
     if (!confirm('Are you sure you want to delete this product?')) return;
     
     try {
-      const response = await ProductService.deleteProduct(id);
-      if (response.success) {
-        setProducts(products.filter(product => product.id !== id));
-        setPagination(prev => ({
-          ...prev,
-          totalItems: prev.totalItems - 1
-        }));
-      } else {
-        setError(response.message);
-      }
+      await ProductService.deleteProduct(id);
+      setProducts(products.filter(product => product.id !== id));
+      setPagination(prev => ({
+        ...prev,
+        totalItems: prev.totalItems - 1
+      }));
     } catch (err) {
       setError('Failed to delete product');
     }
@@ -99,7 +106,7 @@ const ProductsPage = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Product Management</h1>
           <Link 
-            href="/products/create"
+            href="/admin/products/create"
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
           >
             Add Product
@@ -131,7 +138,6 @@ const ProductsPage = () => {
               className="w-full p-2 border rounded"
             >
               <option value="">All Categories</option>
-              {/* You would populate this from your categories API */}
               <option value="electronics">Electronics</option>
               <option value="clothing">Clothing</option>
             </select>
@@ -186,19 +192,17 @@ const ProductsPage = () => {
                         )}
                       </td>
                       <td className="py-2 px-4 border">
-                        <Link href={`/products/${product.id}`} className="text-blue-600 hover:underline">
+                        <Link href={`/admin/products/${product.id}`} className="text-blue-600 hover:underline">
                           {product.name}
                         </Link>
                       </td>
                       <td className="py-2 px-4 border">${product.price.toFixed(2)}</td>
                       <td className="py-2 px-4 border">{product.stock}</td>
-                      <td className="py-2 px-4 border">
-                        {product.categoryDetails?.name || product.categoryId}
-                      </td>
+                      <td className="py-2 px-4 border">{product.category}</td>
                       <td className="py-2 px-4 border">
                         <div className="flex space-x-2">
                           <Link 
-                            href={`/products/edit/${product.id}`}
+                            href={`/admin/products/edit/${product.id}`}
                             className="text-blue-600 hover:text-blue-800"
                           >
                             Edit

@@ -13,12 +13,15 @@ export default function LayoutEffectSuppressor() {
     // Store the original console.error
     const originalConsoleError = console.error;
     
-    // Override console.error to filter out the specific warning
-    console.error = (...args) => {
-      // Filter out the useLayoutEffect warning
+    // Override console.error to filter out specific warnings
+    console.error = (...args: any[]) => {
+      // Filter out the useLayoutEffect warning and dev overlay related warnings
       if (
-        typeof args[0] === 'string' && 
-        args[0].includes('useLayoutEffect does nothing on the server')
+        typeof args[0] === 'string' && (
+          args[0].includes('useLayoutEffect does nothing on the server') ||
+          args[0].includes('Warning: useLayoutEffect') ||
+          (args[0].includes('Warning:') && args[0].includes('useLayoutEffect'))
+        )
       ) {
         return;
       }

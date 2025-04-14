@@ -1,71 +1,58 @@
-import { Cart, CartItem, ApiResponse } from '../../type/index.d';
+// services/cartService.ts
+import apiClient from "./apiHelper";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+interface CartItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  price: number;
+  productDetails?: Product;
+}
 
-export const getCart = async (userId: string): Promise<ApiResponse<Cart>> => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/cart?userId=${userId}`, {
-      credentials: 'include'
-    });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+interface Cart {
+  id: string;
+  userId: string;
+  totalAmount: number;
+  cartItems: CartItem[];
+}
 
-    return await res.json();
-  } catch (error) {
-    console.error('Failed to fetch cart:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to fetch cart',
-      data: null
-    };
-  }
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  // other product fields
+}
+
+interface AddToCartParams {
+  productId: string;
+  quantity: number;
+}
+
+interface UpdateCartItemParams {
+  quantity: number;
+}
+
+export const CartService = {
+  getCart: async (): Promise<Cart> => {
+    return apiClient.get("/cart");
+  },
+
+  addToCart: async (data: AddToCartParams): Promise<CartItem> => {
+    return apiClient.post("/cart/items", data);
+  },
+
+  updateCartItem: async (cartItemId: string, data: UpdateCartItemParams): Promise<CartItem> => {
+    return apiClient.put(`/cart/items/${cartItemId}`, data);
+  },
+
+  removeFromCart: async (cartItemId: string): Promise<void> => {
+    return apiClient.delete(`/cart/items/${cartItemId}`);
+  },
+
+  clearCart: async (): Promise<void> => {
+    return apiClient.delete("/cart/clear");
+  },
 };
 
-export const addToCart = async (
-  userId: string,
-  item: Omit<CartItem, 'id'>
-): Promise<ApiResponse<Cart>> => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/cart`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify({ userId, ...item })
-    });
-
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-    return await res.json();
-  } catch (error) {
-    console.error('Failed to add to cart:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to add to cart',
-      data: null
-    };
-  }
-};
-
-export const removeFromCart = async (
-  userId: string,
-  itemId: string
-): Promise<ApiResponse<Cart>> => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/cart/${itemId}?userId=${userId}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-    return await res.json();
-  } catch (error) {
-    console.error('Failed to remove from cart:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to remove from cart',
-      data: null
-    };
-  }
-};
+export type { Cart, CartItem, AddToCartParams, UpdateCartItemParams };

@@ -1,4 +1,4 @@
-// utils/apiClient.ts
+// utils/apiHelper.ts
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6001/api';
@@ -7,12 +7,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6001/a
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
-// Add request interceptor to handle auth tokens if needed
+// Add request interceptor to handle auth tokens and content type
 axiosInstance.interceptors.request.use(
   (config) => {
     // Get token from localStorage or wherever you store it
@@ -20,6 +17,12 @@ axiosInstance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Set Content-Type if not FormData (for file uploads)
+    if (!(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
     return config;
   },
   (error) => {
@@ -30,7 +33,7 @@ axiosInstance.interceptors.request.use(
 // Add response interceptor for error handling
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
-    return response;
+    return response.data;
   },
   (error) => {
     if (error.response?.status === 401) {
@@ -40,7 +43,7 @@ axiosInstance.interceptors.response.use(
         window.location.href = '/login';
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(error.response?.data || error.message);
   }
 );
 

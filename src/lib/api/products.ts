@@ -1,117 +1,110 @@
+// services/productService.ts
 import apiClient from "./apiHelper";
 
-const API_ENDPOINTS = {
-  PRODUCTS: "/products",
-  PRODUCT_BY_ID: (id: string) => `/products/${id}`,
-};
-
-// Define TypeScript interfaces
 interface Product {
   id: string;
   name: string;
-  price: number;
   description: string;
+  price: number;
+  image_url: string;
+  category: string;
   stock: number;
-  categoryId: string;
-  image_url?: string;
   createdAt?: string;
   updatedAt?: string;
-  categoryDetails?: Category;
-  reviewDetails?: Review[];
 }
 
-interface Category {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-interface Review {
-  id: string;
-  rating: number;
-  comment: string;
-  userId: string;
-  productId: string;
-  userDetails?: User;
-}
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data?: T;
-  pagination?: Pagination;
-}
-
-interface Pagination {
+interface ProductListResponse {
+  products: Product[];
+  total: number;
   page: number;
   limit: number;
-  totalItems: number;
-  totalPages: number;
 }
 
-interface ProductQueryParams {
-  category?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  sort?: string;
-  page?: number;
-  limit?: number;
-  search?: string;
-}
-
-interface CreateProductData {
+interface CreateProductParams {
   name: string;
   description: string;
   price: number;
+  category: string;
   stock: number;
-  categoryId: string;
+  image_url: File;
+}
+
+interface UpdateProductParams {
+  name?: string;
+  description?: string;
+  price?: number;
+  category?: string;
+  stock?: number;
   image_url?: File;
 }
 
-interface UpdateProductData extends Partial<CreateProductData> {
-  id: string;
+interface ProductFilterParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
 }
 
-// Product service methods
 export const ProductService = {
-  getAllProducts: async () => {
-    return apiClient.get<Product[]>(API_ENDPOINTS.PRODUCTS);
+  getAllProducts: async (): Promise<Product[]> => {
+    return apiClient.get("/products/all");
   },
 
-  getProducts: async (params: ProductQueryParams) => {
-    return apiClient.get<Product[]>(API_ENDPOINTS.PRODUCTS, { params });
+  getProducts: async (params: ProductFilterParams): Promise<ProductListResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.category) queryParams.append('category', params.category);
+    
+    return apiClient.get(`/products?${queryParams.toString()}`);
   },
 
-  getProductById: async (id: string) => {
-    return apiClient.get<Product>(API_ENDPOINTS.PRODUCT_BY_ID(id));
+  getProductById: async (id: string): Promise<Product> => {
+    return apiClient.get(`/products/${id}`);
   },
 
-  createProduct: async (formData: FormData) => {
-    return apiClient.post<Product>(API_ENDPOINTS.PRODUCTS, formData);
+  createProduct: async (data: CreateProductParams): Promise<Product> => {
+    const formData = new FormData();
+    formData.append('name', data.name);
+    formData.append('description', data.description);
+    formData.append('price', data.price.toString());
+    formData.append('category', data.category);
+    formData.append('stock', data.stock.toString());
+    formData.append('image_url', data.image_url);
+
+    return apiClient.post("/products", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   },
 
-  updateProduct: async (id: string, formData: FormData) => {
-    return apiClient.put<Product>(API_ENDPOINTS.PRODUCT_BY_ID(id), formData);
+  updateProduct: async (id: string, data: UpdateProductParams): Promise<Product> => {
+    const formData = new FormData();
+    if (data.name) formData.append('name', data.name);
+    if (data.description) formData.append('description', data.description);
+    if (data.price) formData.append('price', data.price.toString());
+    if (data.category) formData.append('category', data.category);
+    if (data.stock) formData.append('stock', data.stock.toString());
+    if (data.image_url) formData.append('image_url', data.image_url);
+
+    return apiClient.put(`/products/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   },
 
-  deleteProduct: async (id: string) => {
-    return apiClient.delete(API_ENDPOINTS.PRODUCT_BY_ID(id));
-  }
+  deleteProduct: async (id: string): Promise<void> => {
+    return apiClient.delete(`/products/${id}`);
+  },
 };
 
-// Export type definitions for use in components
 export type { 
   Product, 
-  Category, 
-  Review, 
-  User, 
-  ProductQueryParams, 
-  CreateProductData, 
-  UpdateProductData 
+  ProductListResponse, 
+  CreateProductParams, 
+  UpdateProductParams, 
+  ProductFilterParams 
 };

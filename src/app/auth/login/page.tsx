@@ -1,14 +1,8 @@
 'use client';
 // components/LoginForm.tsx
 import React, { useState } from 'react';
-import { AuthService } from '../../../lib/api/auth';
+import { UserService, LoginParams } from '../../../lib/api/auth';
 import Cookies from 'js-cookie';
-
-interface LoginParams {
-  usernameOrEmail: string;
-  password: string;
-  rememberMe: boolean;
-}
 
 const LoginForm = () => {
   const [formData, setFormData] = useState<LoginParams>({
@@ -23,7 +17,7 @@ const LoginForm = () => {
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginParams> = {};
     
-    if (!formData.usernameOrEmail.trim()) newErrors.usernameOrEmail = 'Username or email is required';
+    if (!formData.usernameOrEmail.trim()) newErrors.usernameOrEmail = 'Username or Email is required';
     if (!formData.password) newErrors.password = 'Password is required';
 
     setErrors(newErrors);
@@ -32,26 +26,27 @@ const LoginForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    console.log(formData);
     if (!validateForm()) return;
     
     setIsLoading(true);
     setErrors({});
 
     try {
-      const response = await AuthService.login({
-        usernameOrEmail: formData.usernameOrEmail,
-        password: formData.password,
-        rememberMe: formData.rememberMe
-      });
+      const response = await UserService.login(formData);
       console.log('Login successful:', response);
 
-      // Store token in cookie
-      if (response.token) {
-        Cookies.set('authToken', response.token, { expires: 7 }); // Expires in 7 days
+      // Store token in cookie and localStorage for redundancy
+      if (response.data.token) {
+        Cookies.set('authToken', response.data.token, { expires: 7 }); // Expires in 7 days
+        localStorage.setItem('token', response.data.token);
+        console.log(response.data.token);
+        
       }
 
-      // Redirect or show success message
+      // Redirect to dashboard
+    //   window.location.href = '/store/products';
     } catch (err) {
       setErrors({
         form: err instanceof Error ? err.message : 'Login failed. Please try again.'
@@ -62,15 +57,15 @@ const LoginForm = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
   };
 
   return (
-    <div className="flex w-full h-200 justify-center items-center text-black bg-blue-100">
+    <div className="flex w-full h-200 justify-center items-center text-black">
       <div className="max-w-md w-100 mx-auto p-10 bg-white rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
         
@@ -86,8 +81,7 @@ const LoginForm = () => {
               type="text"
               id="usernameOrEmail"
               name="usernameOrEmail"
-              placeholder='Username or Email'
-              value={formData.usernameOrEmail}
+              placeholder="Email or Username"
               onChange={handleChange}
               className={`mt-1 block w-full p-3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.usernameOrEmail ? 'border-red-500' : 'border'}`}
             />
@@ -99,7 +93,7 @@ const LoginForm = () => {
               type="password"
               id="password"
               name="password"
-              placeholder='Password'
+              placeholder="Password"
               value={formData.password}
               onChange={handleChange}
               className={`mt-1 block w-full p-3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${errors.password ? 'border-red-500' : 'border'}`}
@@ -107,19 +101,8 @@ const LoginForm = () => {
             {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
           </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              name="rememberMe"
-              checked={formData.rememberMe}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-900">
-              Remember me
-            </label>
-          </div>
+          <input type="checkbox" id="rememberMe" name="rememberMe" checked={formData.rememberMe} onChange={() => setFormData(prev => ({ ...prev, rememberMe: !prev.rememberMe }))} />
+          <label htmlFor="rememberMe">Remember me</label>
 
           <button
             type="submit"
@@ -131,7 +114,7 @@ const LoginForm = () => {
         </form>
 
         <div className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account? <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">Register</a>
+          Don't have an account? <a href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">Register</a>
         </div>
       </div>
     </div>

@@ -1,12 +1,14 @@
-"use client";
 import { Inter } from 'next/font/google';
-import Navbar from '../components/Navbar/page';
 import './globals.css';
-import LayoutEffectSuppressor from '../components/LayoutEffectSuppressor';
-import Sidebar from '../components/Sidebar/Page';
-import Footer from '../components/Footer/page';
-// import Footer from '/components/footer/page';
+import ClientLayout from '../components/ClientLayout';
+import type { Metadata } from 'next';
+
 const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Your App Name',
+  description: 'Your app description',
+};
 
 export default function RootLayout({
   children,
@@ -14,24 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {/* Suppresses useLayoutEffect warnings during SSR */}
-        <LayoutEffectSuppressor />
-
-
-        {/* Navbar */}
-        <Navbar />
-
-        {/* Main Content */}
-        <div className='bg-white-100 w-100%'>
-
-            <main>{children}</main>
-        </div>
-        
-        {/* Footer */}
-        <Footer />
-
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

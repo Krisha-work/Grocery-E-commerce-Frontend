@@ -1,66 +1,75 @@
-// services/authService.ts
+// services/userService.ts
 import apiClient from "./apiHelper";
 
-// Define API endpoints
-const API_ENDPOINTS = {
-  REGISTER: "/users/register",
-  LOGIN: "/users/login",
-  USER_DATA: "/users/me",
-  UPDATE_USER: "/users/profile",
-  LOGOUT: "/users/logout",
-};
-
-// Define TypeScript interfaces for request/response
 interface User {
   id: string;
-  username: string;
+  name: string;
   email: string;
-}
-
-interface AuthResponse {
-  user: User;
-  token: string;
+  // other user fields
 }
 
 interface RegisterParams {
-  username: string;
   email: string;
   password: string;
+  username: string;
 }
 
 interface LoginParams {
   usernameOrEmail: string;
   password: string;
-  rememberMe:boolean;
+  rememberMe: boolean;
 }
 
-interface UpdateUserParams {
+interface UpdateProfileParams {
   username?: string;
   email?: string;
 }
 
-// Auth service methods
-export const AuthService = {
-  register: async (data: RegisterParams): Promise<AuthResponse> => {
-    return apiClient.post(API_ENDPOINTS.REGISTER, data);
+interface ResetPasswordParams {
+  currentPassword: string;
+  newPassword: string;
+}
+
+interface ForgotPasswordParams {
+  email: string;
+}
+
+export const UserService = {
+  register: async (data: RegisterParams): Promise<{ user: User; token: string }> => {
+    return apiClient.post("/users/register", data);
   },
 
-  login: async (data: LoginParams): Promise<AuthResponse> => {
-    return apiClient.post(API_ENDPOINTS.LOGIN, data);
+  login: async (data: LoginParams): Promise<{ user: User; token: string }> => {
+    return apiClient.post("/users/login", data);
   },
 
-  getUser: async (): Promise<User> => {
-    return apiClient.get(API_ENDPOINTS.USER_DATA);
+  verifyEmail: async (token: string): Promise<void> => {
+    return apiClient.get(`/users/verify-email/${token}`);
   },
 
-  updateUser: async (userId: string, data: UpdateUserParams): Promise<User> => {
-    return apiClient.put(`${API_ENDPOINTS.UPDATE_USER}/${userId}`, data);
+  forgotPassword: async (data: ForgotPasswordParams): Promise<void> => {
+    return apiClient.post("/users/forgot-password", data);
+  },
+
+  getProfile: async (): Promise<User> => {
+    return apiClient.get("/users/profile");
   },
 
   logout: async (): Promise<void> => {
-    return apiClient.post(API_ENDPOINTS.LOGOUT);
+    return apiClient.post("/users/logout");
+  },
+
+  updateProfile: async (data: UpdateProfileParams): Promise<User> => {
+    return apiClient.put("/users/profile", data);
+  },
+
+  verifyProfileUpdate: async (): Promise<void> => {
+    return apiClient.post("/users/profile/verify");
+  },
+
+  resetPassword: async (data: ResetPasswordParams): Promise<void> => {
+    return apiClient.put("/users/reset-password", data);
   },
 };
 
-// Export type definitions for use in components
-export type { User, AuthResponse, RegisterParams, LoginParams, UpdateUserParams };
+export type { User, RegisterParams, LoginParams,  UpdateProfileParams, ResetPasswordParams };
