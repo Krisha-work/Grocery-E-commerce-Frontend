@@ -1,7 +1,8 @@
 'use client';
 // components/LoginForm.tsx
-import React, { useState } from 'react';
-import { UserService, LoginParams } from '../../../lib/api/auth';
+import React, { useEffect, useState } from 'react';
+import { UserService, LoginParams } from '../../lib/api/auth';
+import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 
 const LoginForm = () => {
@@ -13,6 +14,20 @@ const LoginForm = () => {
 
   const [errors, setErrors] = useState<Partial<LoginParams> & { form?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const isAuthenticated = () => {
+    const token = Cookies.get('authToken');
+    return !!token;
+  };
+
+  useEffect(()=>{
+    if (isAuthenticated()) {
+      router.push('/');
+      
+      return;
+    }
+  })
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginParams> = {};
@@ -35,14 +50,14 @@ const LoginForm = () => {
 
     try {
       const response = await UserService.login(formData);
-      console.log('Login successful:', response);
+      console.log('Login successful:', response.data);
 
       // Store token in cookie and localStorage for redundancy
+
       if (response.data.token) {
-        Cookies.set('authToken', response.data.token, { expires: 7 }); // Expires in 7 days
+        Cookies.set('authToken', response.data.token, { expires: 1 }); // Expires in 1 days
         localStorage.setItem('token', response.data.token);
         console.log(response.data.token);
-        
       }
 
       // Redirect to dashboard

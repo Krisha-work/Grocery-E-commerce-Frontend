@@ -1,131 +1,172 @@
-// utils/cart.ts
 import { CartService } from "../api/cart";
-import { CartItem, Cart } from '../types/cart';
+import { Cart, CartItem, PaymentResponse } from "../types/cart";
+import { Product as ApiProduct } from "../api/products";
+import { loadStripe } from '@stripe/stripe-js';
 
-// Example: Get user's cart
-export const fetchUserCart = async () => {
+// Get cart from local storage
+const getLocalCart = (): Cart => {
   try {
-    const cart = await CartService.getCart();
-    console.log("User cart:", cart);
+    const cartJson = localStorage.getItem('cart');
+    if (cartJson) {
+      return JSON.parse(cartJson);
+    }
+    return { items: [], total: 0 };
+  } catch (error) {
+    console.error("Error getting local cart:", error);
+    return { items: [], total: 0 };
+  }
+};
+
+// Add to cart
+const addToCart = async (productId: string, quantity: number): Promise<Cart> => {
+  try {
+    const item = await CartService.addToCart(Number(productId), quantity);
+    const cart = getLocalCart();
+    const existingItemIndex = cart.items.findIndex((i: CartItem) => i.id === productId);
+    
+    if (existingItemIndex >= 0) {
+      cart.items[existingItemIndex].quantity += quantity;
+    } else {
+      const productDetails = item.productDetails;
+      if (productDetails) {
+        cart.items.push({
+          id: productId,
+          name: productDetails.name || '',
+          price: item.price,
+          quantity: quantity,
+          image: (productDetails as unknown as ApiProduct)?.image_url
+        });
+      }
+    }
+    
+    cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
+    localStorage.setItem('cart', JSON.stringify(cart));
     return cart;
   } catch (error) {
-    console.error("Failed to fetch cart:", error);
+    console.error("Error adding to cart:", error);
     throw error;
   }
-};
-
-// Example: Add item to cart
-export const addItemToCart = async (productId: string, quantity: number) => {
-  try {
-    const cartItem = await CartService.addToCart({ productId, quantity });
-    console.log("Item added to cart:", cartItem);
-    return cartItem;
-  } catch (error) {
-    console.error("Failed to add item to cart:", error);
-    throw error;
-  }
-};
-
-// Example: Update cart item quantity
-export const updateCartItemQuantity = async (cartItemId: string, newQuantity: number) => {
-  try {
-    const updatedItem = await CartService.updateCartItem(cartItemId, {
-      quantity: newQuantity,
-    });
-    console.log("Cart item updated:", updatedItem);
-    return updatedItem;
-  } catch (error) {
-    console.error("Failed to update cart item:", error);
-    throw error;
-  }
-};
-
-// Example: Remove item from cart
-export const removeCartItem = async (cartItemId: string) => {
-  try {
-    await CartService.removeFromCart(cartItemId);
-    console.log("Item removed from cart");
-  } catch (error) {
-    console.error("Failed to remove item from cart:", error);
-    throw error;
-  }
-};
-
-// Example: Clear entire cart
-export const clearUserCart = async () => {
-  try {
-    await CartService.clearCart();
-    console.log("Cart cleared successfully");
-  } catch (error) {
-    console.error("Failed to clear cart:", error);
-    throw error;
-  }
-};
-
-// Cart state management using localStorage
-const CART_STORAGE_KEY = 'shopping_cart';
-
-// Get cart from localStorage
-export const getCart = (): Cart => {
-  if (typeof window === 'undefined') return { items: [], total: 0 };
-  
-  const cartJson = localStorage.getItem(CART_STORAGE_KEY);
-  return cartJson ? JSON.parse(cartJson) : { items: [], total: 0 };
-};
-
-// Save cart to localStorage
-const saveCart = (cart: Cart) => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-};
-
-// Add item to cart
-export const addToCart = (item: CartItem) => {
-  const cart = getCart();
-  const existingItem = cart.items.find(i => i.id === item.id);
-  
-  if (existingItem) {
-    existingItem.quantity += item.quantity;
-  } else {
-    cart.items.push(item);
-  }
-  
-  cart.total = calculateTotal(cart.items);
-  saveCart(cart);
-  return cart;
-};
-
-// Remove item from cart
-export const removeFromCart = (itemId: string) => {
-  const cart = getCart();
-  cart.items = cart.items.filter(item => item.id !== itemId);
-  cart.total = calculateTotal(cart.items);
-  saveCart(cart);
-  return cart;
 };
 
 // Update item quantity
-export const updateItemQuantity = (itemId: string, quantity: number) => {
-  const cart = getCart();
-  const item = cart.items.find(i => i.id === itemId);
-  
-  if (item) {
-    item.quantity = quantity;
-    cart.total = calculateTotal(cart.items);
-    saveCart(cart);
+const updateItemQuantity = async (cartItemId: string, quantity: number): Promise<Cart> => {
+  try {
+    const cart = getLocalCart();
+    const itemIndex = cart.items.findIndex((item: CartItem) => item.id === cartItemId);
+    
+    if (itemIndex >= 0) {
+      cart.items[itemIndex].quantity = quantity;
+      cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
+      localStorage.setItem('cart', JSON.stringify(cart));
+    }
+    
+    return cart;
+  } catch (error) {
+    console.error("Error updating cart item:", error);
+    throw error;
   }
-  
-  return cart;
+};
+
+// Remove item from cart
+const removeFromCart = async (cartItemId: string): Promise<Cart> => {
+  try {
+    const cart = getLocalCart();
+    cart.items = cart.items.filter((item: CartItem) => item.id !== cartItemId);
+    cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    return cart;
+  } catch (error) {
+    console.error("Error removing item:", error);
+    throw error;
+  }
 };
 
 // Clear cart
-export const clearCart = () => {
-  const emptyCart = { items: [], total: 0 };
-  saveCart(emptyCart);
-  return emptyCart;
+const clearCart = async (): Promise<Cart> => {
+  try {
+    const emptyCart = { items: [], total: 0 };
+    localStorage.setItem('cart', JSON.stringify(emptyCart));
+    return emptyCart;
+  } catch (error) {
+    console.error("Error clearing cart:", error);
+    throw error;
+  }
 };
 
-// Calculate total
-const calculateTotal = (items: CartItem[]): number => {
-  return items.reduce((total, item) => total + (item.price * item.quantity), 0);
+// Sync local cart with server cart
+const syncCart = async (localCart: Cart): Promise<Cart> => {
+  try {
+    if (localCart.items.length === 0) {
+      return localCart;
+    }
+    
+    const serverCart = await CartService.getCart();
+    const mergedItems = [...((serverCart as unknown) as Cart).items];
+    
+    // Add local items that don't exist in server cart
+    localCart.items.forEach(localItem => {
+      const exists = mergedItems.some(item => item.id === localItem.id);
+      if (!exists) {
+        mergedItems.push(localItem);
+      }
+    });
+    
+    return {
+      items: mergedItems,
+      total: mergedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    };
+  } catch (error) {
+    console.error("Error syncing cart:", error);
+    return localCart;
+  }
+};
+
+/**
+ * Process payment for the current cart using Stripe
+ * @param paymentMethodId - Stripe payment method ID
+ * @param customerId - Customer ID in the system
+ * @returns Empty cart if payment is successful
+ * @throws Error if payment fails
+ */
+const processPayment = async (paymentMethodId: string, customerId: number): Promise<Cart> => {
+  try {
+    // Initialize Stripe
+    const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+    if (!stripe) {
+      throw new Error('Failed to initialize Stripe');
+    }
+
+    // Get current cart
+    const cart = getLocalCart();
+    if (!cart.items.length) {
+      throw new Error('Cart is empty');
+    }
+
+    // Process payment through backend
+    const response = await CartService.paymentProcress(paymentMethodId, customerId);
+    const paymentResult = response as unknown as PaymentResponse;
+
+    // Validate payment response
+    if (!paymentResult.success) {
+      throw new Error(paymentResult.error || 'Payment failed');
+    }
+
+    // If payment is successful, clear the cart
+    await clearCart();
+    
+    return { items: [], total: 0 };
+  } catch (error) {
+    console.error("Payment processing error:", error);
+    throw error;
+  }
+}
+
+export {
+  getLocalCart,
+  addToCart,
+  updateItemQuantity,
+  removeFromCart,
+  clearCart,
+  syncCart,
+  processPayment
 };

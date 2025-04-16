@@ -1,8 +1,10 @@
 'use client';
 // components/RegisterForm.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { handleRegister } from '../../../lib/servicers/userService';
 import { RegisterParams } from '@/src/lib/api/auth';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState<RegisterParams>({
@@ -13,15 +15,32 @@ const RegisterForm = () => {
 
   const [errors, setErrors] = useState<Partial<RegisterParams> & { form?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+
+  const isAuthenticated = () => {
+    const token = Cookies.get('authToken');
+    return !!token;
+  };
+
+  useEffect(()=>{
+    if (isAuthenticated()) {
+      router.push('/');
+      
+      return;
+    }
+  })
 
   const validateForm = (): boolean => {
     const newErrors: Partial<RegisterParams> = {};
     
     if (!formData.username.trim()) newErrors.username = 'Username is required';
+    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[_.])[a-zA-Z0-9_.]+$/.test(formData.username)) newErrors.username = 'Username can only contain letters, numbers, dots, and underscores';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format';
-    if (!formData.password) newErrors.password = 'Password is required';
-    else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
+    if (!formData.password.trim()) newErrors.password = 'Password is required';
+    else if (formData.password.length < 8) newErrors.password = 'Password must contain at least 8 characters, including one lowercase letter, one uppercase letter, one number, and one special character (@$!%*?&)';
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -39,11 +58,13 @@ const RegisterForm = () => {
       const response = await handleRegister(formData);
       console.log('Registration successful:', response);
       // Store token
-      if (response.token) {
-        localStorage.setItem('token', response.token);
+      if (response) {
+        localStorage.setItem('token', response);
+
       }
+      
       // Redirect to login or dashboard
-      window.location.href = '/auth/login';
+      // window.location.href = '/login';
     } catch (err) {
       setErrors({
         form: err instanceof Error ? err.message : 'Registration failed. Please try again.'
@@ -122,7 +143,7 @@ const RegisterForm = () => {
         </form>
 
         <div className="mt-4 text-center text-sm text-gray-600">
-          Already have an account? <a href="/auth/login" className="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
+          Already have an account? <a href="/login" className="font-medium text-blue-600 hover:text-blue-500">Sign in</a>
         </div>
       </div>
     </div>

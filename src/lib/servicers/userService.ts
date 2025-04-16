@@ -3,13 +3,12 @@ import { UserService } from "../api/auth";
 // Register a new user
 const handleRegister = async (registerData: { email: string; password: string; username: string }) => {
     try {
-        const { user, token } = await UserService.register(registerData);
-        localStorage.setItem('token', token);
-        console.log('Registration successful:', user);
-        return { user, token };
+        const response = await UserService.register(registerData);
+        console.log('Registration successful:', response);
+        return response;
     } catch (error) {
         console.error('Registration error:', error);
-        throw error;
+        return error;
     }
 };
 
@@ -93,12 +92,15 @@ const verifyProfileUpdate = async () => {
 };
 
 // Reset password
-const resetPassword = async () => {
+const resetPassword = async (data: { currentPassword : string, newPassword : string, confirmPassword : string}) => {
     try {
         await UserService.resetPassword({
-            currentPassword: 'oldPassword123',
-            newPassword: 'newSecurePassword456'
+            currentPassword:  data.currentPassword,
+            newPassword: data.newPassword,
+            confirmPassword: data.confirmPassword
+
         });
+        
         console.log('Password reset successful');
     } catch (error) {
         console.error('Password reset error:', error);

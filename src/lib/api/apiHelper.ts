@@ -7,6 +7,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6001/a
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  // validateStatus: () => true
 });
 
 // Add request interceptor to handle auth tokens and content type
@@ -40,12 +41,21 @@ axiosInstance.interceptors.response.use(
       // Handle unauthorized access
       if (typeof window !== 'undefined') {
         // Redirect to login or handle token expiration
-        window.location.href = '/login';
+        // window.location.href = '/login';
       }
     }
     return Promise.reject(error.response?.data || error.message);
   }
 );
+
+export const checkAPIHealth = async (endpoint: string = '/health'): Promise<boolean> => {
+  try {
+    await axiosInstance.get(endpoint);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
 
 // Export the configured instance
 export default axiosInstance;

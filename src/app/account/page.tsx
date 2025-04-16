@@ -11,7 +11,7 @@ import {
 } from '../../lib/servicers/userService';
 import { User } from '../../lib/api/auth';
 import Cookies from 'js-cookie';
-import { AddToCartButton } from '@/components/AddToCartButton';
+import { log } from 'console';
 
 interface UserProfile extends User {
   isVerified: boolean;
@@ -81,6 +81,8 @@ const AccountPage = () => {
       setIsLoading(true);
       setError(null);
       await updateProfile(updateData);
+      console.log(updateData,"----");
+      
       setSuccess('Profile updated successfully');
       await loadProfile();
     } catch (err) {
@@ -100,7 +102,7 @@ const AccountPage = () => {
     try {
       setIsLoading(true);
       setError(null);
-      await resetPassword();
+      await resetPassword(passwordData);
       setSuccess('Password reset successful');
     } catch (err) {
       setError('Failed to reset password');
@@ -128,7 +130,7 @@ const AccountPage = () => {
       await handleLogout();
       Cookies.remove('authToken');
       localStorage.clear();
-      window.location.href = '/auth/login';
+      window.location.href = '/login';
     } catch (err) {
       setError('Failed to logout');
     }
@@ -159,12 +161,12 @@ const AccountPage = () => {
             >
               Profile
             </button>
-            <button
+            {/* <button
               className={`px-4 py-2 ${activeTab === 'security' ? 'border-b-2 border-blue-500' : ''}`}
               onClick={() => setActiveTab('security')}
             >
               Security
-            </button>
+            </button> */}
           </div>
 
           {error && (
@@ -217,7 +219,7 @@ const AccountPage = () => {
             </div>
           )}
 
-          {activeTab === 'security' && (
+          {/* {activeTab === 'security' && (
             <div className="space-y-6 flex justify-center items-center gap-6">
               <div className='w-170'>
                 <h2 className="text-xl font-semibold mb-4">Reset Password</h2>
@@ -281,7 +283,7 @@ const AccountPage = () => {
                 </form>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>

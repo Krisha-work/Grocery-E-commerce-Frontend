@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { CartItem } from '@/src/lib/types/cart';
 import { addToCart } from '@/src/lib/servicers/cartService';
 import { toast } from 'react-hot-toast';
-import { Loader2, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 interface AddToCartButtonProps {
   product: {
@@ -27,19 +29,22 @@ export const AddToCartButton = ({
   size = 'md',
 }: AddToCartButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const isAuthenticated = () => {
+    const token = Cookies.get('authToken');
+    return !!token;
+  };
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated()) {
+      router.push('/login');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const cartItem: CartItem = {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity,
-        image: product.image,
-      };
-      
-      addToCart(cartItem);
+      await addToCart(product.id, quantity);
       toast.success(`${product.name} added to cart`);
     } catch (error) {
       toast.error('Failed to add item to cart');
@@ -85,12 +90,8 @@ export const AddToCartButton = ({
         ${className}
       `}
     >
-      {isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <ShoppingCart className="h-4 w-4" />
-      )}
-      <span>Add to Cart</span>
+      <ShoppingCart className="h-4 w-4" />
+      {isLoading ? 'Adding...' : 'Add to Cart'}
     </button>
   );
 }; 

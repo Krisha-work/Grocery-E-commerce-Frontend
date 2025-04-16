@@ -16,22 +16,22 @@ const createOrder = async () => {
 };
 
 // Get user orders
-const getUserOrders = async () => {
+export const getUserOrders = async () => {
   try {
-    const orders = await OrderService.getUserOrders();
-    console.log('User orders:', orders);
+    return await OrderService.getUserOrders();
   } catch (error) {
     console.error('Orders fetch error:', error);
+    throw error;
   }
 };
 
 // Get order by id
-const getOrderById = async (orderId: string) => {
+export const getOrderById = async (orderId: string) => {
   try {
-    const order = await OrderService.getOrder(orderId);
-    console.log('Order:', order);
+    return await OrderService.getOrder(orderId);
   } catch (error) { 
     console.error('Order fetch error:', error);
+    throw error;
   }
 };
 
@@ -59,22 +59,22 @@ const processPayment = async (orderId: string) => {
 };
 
 // Get all orders
-const getAllOrders = async () => {
+export const getAllOrders = async () => {
   try {
-    const orders = await OrderService.getAllOrders();
-    console.log('All orders:', orders);
+    return await OrderService.getAllOrders();
   } catch (error) { 
     console.error('Orders fetch error:', error);
+    throw error;
   }
 };
 
 // Update order status
-const updateOrderStatus = async (orderId: string, status: string) => {
+export const updateOrderStatus = async (orderId: string, status: string) => {
   try {
-    const updatedOrder = await OrderService.updateOrderStatus(orderId, status);
-    console.log('Order status updated:', updatedOrder);
+    return await OrderService.updateOrderStatus(orderId, status);
   } catch (error) { 
     console.error('Order status update error:', error);
+    throw error;
   }
 };
 

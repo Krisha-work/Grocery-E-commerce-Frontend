@@ -28,6 +28,7 @@ interface UpdateProfileParams {
 interface ResetPasswordParams {
   currentPassword: string;
   newPassword: string;
+  confirmPassword : string
 }
 
 interface ForgotPasswordParams {

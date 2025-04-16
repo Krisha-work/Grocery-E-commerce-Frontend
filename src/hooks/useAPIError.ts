@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { checkAPIHealth } from '@/src/lib/api/apiHelper';
+import checkAPIHealth from '../lib/api/apiHelper';
 
 export const useAPIError = () => {
   const [error, setError] = useState<Error | null>(null);
@@ -16,7 +16,7 @@ export const useAPIError = () => {
   const checkConnection = useCallback(async () => {
     setIsChecking(true);
     try {
-      const isHealthy = await checkAPIHealth();
+      const isHealthy = await checkAPIHealth('/health');
       if (!isHealthy) {
         throw new Error('Unable to connect to the server. Please check if the server is running.');
       }

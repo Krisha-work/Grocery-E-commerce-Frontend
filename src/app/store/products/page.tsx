@@ -86,7 +86,7 @@ export default function ProductsPage() {
               <p className="text-gray-600 mt-1">{product.description}</p>
               <div className="mt-4 items-center">
                 <span className="text-xl font-bold">$ {product.price}</span><br />
-                <AddToCartButton product={product} />
+                <AddToCartButton product={product} className='w-full' />
                 <Link href={`/store/products/${product.id}`}>
                   <button className="bg-blue-500 w-full text-white px-4 mt-2 py-2 rounded-md hover:bg-blue-600 transition-colors">
                     View Product

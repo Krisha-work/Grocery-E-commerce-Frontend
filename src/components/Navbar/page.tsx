@@ -9,9 +9,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-    { label: 'Home', href: '/' },
     { label: 'Products', href: '/store/products' },
-    { label: 'About', href: '/about' },
+    // { label: 'About', href: '/about' },
     { label: 'Contact', href: '/contact' },
 ];
 
@@ -36,12 +35,10 @@ const Navbar: React.FC = () => {
         else {
             setIsAuthenticate(false);
         }
-    }, []);
+    });
 
     return (
         <header className="w-full">
-            {/* Top Bar */}
-
 
             {/* Main Navbar */}
             <nav className="bg-white fixed top-0 left-0 right-0 z-50 py-4 px-4 shadow-sm">
@@ -68,14 +65,14 @@ const Navbar: React.FC = () => {
 
                     {/* Icons */}
                     <div className="flex items-center text-black gap-4">
-
-                        <Link href="/store/cart">
-                            <button aria-label="Cart" className="p-2 hover:text-[#1B4B27]">
-                                <FiShoppingBag size={20} />
-                            </button>
-                        </Link>
                         {!isAuthenticate ? (
                             <>
+
+                                <Link href="/store/cart">
+                                    <button aria-label="Cart" className="p-2 hover:text-[#1B4B27]">
+                                        <FiShoppingBag size={20} />
+                                    </button>
+                                </Link>
                                 <Link href="/account">
                                     <button aria-label="Account" className="p-3 bg-[#1B4B27] hover:bg-[#3F7D58] text-white rounded-lg px-4">
                                         <FiUser size={20} />
@@ -84,7 +81,7 @@ const Navbar: React.FC = () => {
                             </>
                         ) : (
                             <>
-                                <Link href="/auth/login">
+                                <Link href="/login">
                                     <button className="p-2 bg-[#1B4B27] hover:bg-[#3F7D58] text-white rounded-md px-5">
                                         Login
                                     </button>
