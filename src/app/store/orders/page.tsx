@@ -5,35 +5,29 @@ import { getUserOrders } from '@/src/lib/servicers/orderService';
 import Link from 'next/link';
 import { Order as ApiOrder } from '@/src/lib/api/order';
 
-interface UIOrder {
-  id: string;
-  status: string;
-  total: number;
-  createdAt: string;
-  items: {
-    id: string;
-    quantity: number;
-    price: number;
-    product: {
-      name: string;
-      image_url: string;
-    };
-  }[];
+interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  product: {
+    name: string;
+    image_url: string;
+  };
+}
+
+interface UIOrder extends Omit<ApiOrder, 'items'> {
+  items: OrderItem[];
 }
 
 const transformOrder = (apiOrder: ApiOrder): UIOrder => {
   return {
-    id: apiOrder.id,
-    status: apiOrder.status,
-    total: apiOrder.total,
-    createdAt: apiOrder.createdAt,
+    ...apiOrder,
     items: apiOrder.items.map(item => ({
-      id: item.productId,
-      quantity: item.quantity,
-      price: 0, // You'll need to fetch this from the product
+      ...item,
+      price: item.price || 0,
       product: {
-        name: '', // You'll need to fetch this from the product
-        image_url: '' // You'll need to fetch this from the product
+        name: item.productName || '',
+        image_url: item.productImage || '/placeholder.jpg'
       }
     }))
   };
@@ -48,6 +42,8 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
       try {
         const apiOrders = await getUserOrders();
+        console.log(apiOrders);
+        
         const transformedOrders = apiOrders.map(transformOrder);
         setOrders(transformedOrders);
       } catch (err) {
@@ -63,7 +59,7 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto mt-20 px-4 py-8">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
@@ -73,7 +69,7 @@ export default function OrdersPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto mt-20 px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           {error}
         </div>
@@ -110,6 +106,7 @@ export default function OrdersPage() {
                   <span className={`px-3 py-1 rounded-full text-sm ${
                     order.status === 'completed' ? 'bg-green-100 text-green-800' :
                     order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                    order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
                     {order.status}
@@ -128,10 +125,10 @@ export default function OrdersPage() {
                   <h3 className="font-medium mb-2">Order Items</h3>
                   <div className="space-y-2">
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex items-center space-x-3">
+                      <div key={item.productId} className="flex items-center space-x-3">
                         <div className="w-12 h-12 bg-gray-200 rounded">
                           <img
-                            src={item.product.image_url || "/placeholder.jpg"}
+                            src={item.product.image_url}
                             alt={item.product.name}
                             className="w-full h-full object-cover rounded"
                           />

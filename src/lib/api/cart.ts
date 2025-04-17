@@ -34,8 +34,30 @@ export const CartService = {
   },
 
   addToCart: async (productId: number, quantity: number): Promise<CartItem> => {
-    const response = await apiClient.post("/cart/items", { productId, quantity });
-    return response.data.data;
+    try {
+      const response = await apiClient.post("/cart/items", { productId, quantity });
+      
+      // Handle different response formats
+      if (response.data?.data) {
+        return response.data.data;
+      } else if (response.data) {
+        return response.data;
+      }
+      
+      throw new Error('Invalid response format from server');
+    } catch (error: any) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        throw new Error(error.response.data?.message || 'Failed to add item to cart');
+      } else if (error.request) {
+        // The request was made but no response was received
+        throw new Error('No response received from server. Please check your connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        throw new Error(error.message || 'Failed to add item to cart');
+      }
+    }
   },
 
   updateCartItem: async (cartItemId: number, quantity: number): Promise<CartItem> => {

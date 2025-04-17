@@ -47,7 +47,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FDF8F4]">
+    <div className="min-h-screen text-black bg-[#FDF8F4]">
       <main className="container w-full h-150 mx-auto px-4 md:px-6 py-8" >
         <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
           {/* Left Content */}
@@ -109,7 +109,7 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 text-black sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {categories.map((category: Category ,index :number) => {
-              console.log(category, "------------");
+              // console.log(category, "------------");
               
               return (
                 <div key={category.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">

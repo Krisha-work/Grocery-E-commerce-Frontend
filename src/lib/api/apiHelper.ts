@@ -37,14 +37,40 @@ axiosInstance.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
-      if (typeof window !== 'undefined') {
-        // Redirect to login or handle token expiration
-        // window.location.href = '/login';
+    // Format error response consistently
+    const errorResponse = {
+      message: '',
+      errors: {},
+      status: error.response?.status || 500
+    };
+
+    if (error.response) {
+      // Server responded with error
+      errorResponse.message = error.response.data?.message || error.response.statusText || 'Operation failed';
+      errorResponse.errors = error.response.data?.errors || {};
+      
+      // Handle specific status codes
+      if (error.response.status === 401) {
+        // Handle unauthorized access
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          // Redirect to login only if not already on login/register pages
+          if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+            window.location.href = '/login';
+          }
+        }
       }
+    } else if (error.request) {
+      // Request made but no response
+      errorResponse.message = 'No response received from server. Please check your connection.';
+    } else {
+      // Error in request configuration
+      errorResponse.message = error.message || 'An unexpected error occurred';
     }
-    return Promise.reject(error.response?.data || error.message);
+
+    // Attach the formatted error response to the error object
+    error.response = { data: errorResponse };
+    return Promise.reject(error);
   }
 );
 

@@ -12,6 +12,8 @@ import { useAuth } from '../../../lib/hooks/useAuth';
 import CheckoutForm  from '../../../components/Payment/CheckoutForm'
 import { Elements } from '@stripe/react-stripe-js';
 import { stripePromise } from '../../../lib/hooks/stripe';
+import { OrderService } from "../../../lib/api/order";
+import { useRouter } from 'next/navigation';
 
 interface ExtendedProduct extends Omit<ServerCartItem['productDetails'], 'image_url'> {
   image_url?: string;
@@ -26,7 +28,9 @@ export default function CartPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shippingAddress, setShippingAddress] = useState('');
   const { isAuthenticated, user } = useAuth();
+  const router = useRouter();
 
   console.log("-------------------------");
 
@@ -182,6 +186,38 @@ export default function CartPage() {
     }
   };
 
+  const handlePlaceOrder = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to place an order');
+      return;
+    }
+
+    if (!shippingAddress.trim()) {
+      toast.error('Please enter a shipping address');
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      const orderItems = cart.items.map(item => ({
+        productId: item.id,
+        quantity: item.quantity,
+        price: item.price * item.quantity
+      }));
+
+      const order = await OrderService.createOrder({ items: orderItems, shippingAddress: shippingAddress });
+      await handleClearCart();
+      toast.success('Order placed successfully!');
+      router.push(`/store/orders/${order.id}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to place order';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -222,79 +258,78 @@ export default function CartPage() {
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="divide-y divide-gray-200">
-              {cart.items.map((item: DisplayCartItem, index: number) => {
-                console.log(item, "item---------");
-
-                return (
-                  <div key={item.id} className="p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
-                    {item.image && (
-                      <div className="relative w-24 h-24 flex-shrink-0">
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          className="object-cover rounded-lg"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">{item.name}</h3>
-                      <p className="mt-1 text-gray-500">${item.price}</p>
+              {cart.items.map((item: DisplayCartItem) => (
+                <div key={item.id} className="p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
+                  {item.image && (
+                    <div className="relative w-24 h-24 flex-shrink-0">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center border rounded-lg">
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                          disabled={isUpdating}
-                          className="p-2 hover:bg-gray-100 disabled:opacity-50"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <span className="px-4 py-2">{item.quantity}</span>
-                        <button
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                          disabled={isUpdating}
-                          className="p-2 hover:bg-gray-100 disabled:opacity-50"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        disabled={isUpdating}
-                        className="p-2 text-red-500 hover:text-red-700 disabled:opacity-50"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-medium text-gray-900 truncate">{item.name}</h3>
+                    <p className="mt-1 text-gray-500">
+                      Par Price : ${item.price}
+                    </p>
+                    <p className="mt-1 text-gray-500">
+                      Quantity : {item.quantity}
+                    </p>
+                    <p className="mt-1 text-gray-500">
+                      Total Price : ${(item.price * item.quantity).toFixed(2)}
+                    </p>
                   </div>
-                )
-              }
-              )}
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      disabled={isUpdating}
+                      className="p-2 text-red-600 hover:text-red-800 disabled:opacity-50"
+                      title="Remove item"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-
             <div className="p-4 sm:p-6 bg-gray-50">
-              <div className="flex justify-between items-center">
-                <div className="text-lg font-medium text-gray-900">
-                  Total: ${cart.total}
-                </div>
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleClearCart}
-                    disabled={isUpdating}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 disabled:opacity-50"
-                  >
-                    Clear Cart
-                  </button>
-                  <button
-                    disabled={isUpdating}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50"
-                  >
-                  <Elements stripe={stripePromise}>
-                    <CheckoutForm />
-                  </Elements>
-                  </button>
-                </div>
+              <div className="flex flex-col gap-4 mb-4">
+                <label htmlFor="shippingAddress" className="text-lg font-medium">Shipping Address:</label>
+                <textarea
+                  id="shippingAddress"
+                  value={shippingAddress}
+                  onChange={(e) => setShippingAddress(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Enter your shipping address"
+                />
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-lg font-medium">Total:</span>
+                <span className="text-xl font-semibold">${cart.total}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  onClick={handleClearCart}
+                  disabled={isUpdating}
+                  className="w-full sm:w-auto px-6 py-3 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                >
+                  Clear Cart
+                </button>
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={isUpdating}
+                  className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {isUpdating ? (
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                  ) : (
+                    'Place Order'
+                  )}
+                </button>
               </div>
             </div>
           </div>

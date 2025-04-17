@@ -16,25 +16,26 @@ const navItems: NavItem[] = [
 
 
 
-const Navbar: React.FC = () => {
+const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const [isAuthenticate, setIsAuthenticate] = useState(false);
 
+    const token = Cookies.get('authToken');
     const isAuthenticated = () => {
-        const token = Cookies.get('authToken');
-        console.log(token);
-
-        return token !== undefined;
-    };
-    // hide login and register button if user is authenticated
-    useEffect(() => {
-        if (!isAuthenticated()) {
+        console.log(token,"----");
+        if (!token){
             setIsAuthenticate(true);
         }
         else {
             setIsAuthenticate(false);
         }
+
+        // return token !== undefined;
+    };
+    // hide login and register button if user is authenticated
+    useEffect(() => {
+        isAuthenticated()
     });
 
     return (
@@ -71,6 +72,11 @@ const Navbar: React.FC = () => {
                                 <Link href="/store/cart">
                                     <button aria-label="Cart" className="p-2 hover:text-[#1B4B27]">
                                         <FiShoppingBag size={20} />
+                                    </button>
+                                </Link>
+                                <Link href="/store/orders">
+                                    <button aria-label="Account" className="p-3 bg-[#1B4B27] hover:bg-[#3F7D58] text-white rounded-lg px-4">
+                                        Order
                                     </button>
                                 </Link>
                                 <Link href="/account">

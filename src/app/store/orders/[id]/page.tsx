@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getOrderById } from '@/src/lib/servicers/orderService';
+import { getOrderById, cancelOrder } from '@/src/lib/servicers/orderService';
+import { Order as ApiOrder } from '@/src/lib/api/order';
 
 interface OrderPageProps {
   params: {
@@ -9,16 +10,44 @@ interface OrderPageProps {
   };
 }
 
+interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  productName: string;
+  productImage: string;
+}
+
+interface UIOrder extends Omit<ApiOrder, 'items'> {
+  items: OrderItem[];
+  shippingAddress: string;
+}
+
+const transformOrder = (apiOrder: ApiOrder): UIOrder => {
+  return {
+    ...apiOrder,
+    items: apiOrder.items.map(item => ({
+      ...item,
+      price: item.price || 0,
+      productName: item.productName || '',
+      productImage: item.productImage || '/placeholder.jpg'
+    })),
+    shippingAddress: apiOrder.shippingAddress || ''
+  };
+};
+
 export default function OrderPage({ params }: OrderPageProps) {
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<UIOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const orderData = await getOrderById(params.id);
-        setOrder(orderData);
+        const apiOrder = await getOrderById(params.id);
+        const transformedOrder = transformOrder(apiOrder);
+        setOrder(transformedOrder);
       } catch (err) {
         setError('Failed to load order details');
         console.error('Error fetching order:', err);
@@ -30,6 +59,21 @@ export default function OrderPage({ params }: OrderPageProps) {
     fetchOrder();
   }, [params.id]);
 
+  const handleCancelOrder = async () => {
+    if (!order || cancelling) return;
+    
+    try {
+      setCancelling(true);
+      await cancelOrder(order.id);
+      setOrder({ ...order, status: 'cancelled' });
+    } catch (err) {
+      setError('Failed to cancel order');
+      console.error('Error cancelling order:', err);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -40,22 +84,11 @@ export default function OrderPage({ params }: OrderPageProps) {
     );
   }
 
-  if (error) {
+  if (error || !order) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Order Not Found</h1>
-          <p>The order you're looking for doesn't exist or has been removed.</p>
+          {error || 'Order not found'}
         </div>
       </div>
     );
@@ -71,19 +104,39 @@ export default function OrderPage({ params }: OrderPageProps) {
             <h2 className="text-lg font-semibold mb-4">Order Information</h2>
             <div className="space-y-2">
               <p><span className="font-medium">Order ID:</span> {order.id}</p>
-              <p><span className="font-medium">Status:</span> {order.status}</p>
+              <p><span className="font-medium">Status:</span> 
+                <span className={`ml-2 px-3 py-1 rounded-full text-sm ${
+                  order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                  order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {order.status}
+                </span>
+              </p>
               <p><span className="font-medium">Date:</span> {new Date(order.createdAt).toLocaleDateString()}</p>
               <p><span className="font-medium">Total:</span> ${order.total.toFixed(2)}</p>
+              
+              {order.status === 'pending' && (
+                <button
+                  onClick={handleCancelOrder}
+                  disabled={cancelling}
+                  className={`mt-4 px-4 py-2 rounded ${
+                    cancelling 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-red-600 hover:bg-red-700'
+                  } text-white`}
+                >
+                  {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                </button>
+              )}
             </div>
           </div>
 
           <div>
             <h2 className="text-lg font-semibold mb-4">Shipping Information</h2>
             <div className="space-y-2">
-              <p><span className="font-medium">Name:</span> {order.shippingAddress?.name}</p>
-              <p><span className="font-medium">Address:</span> {order.shippingAddress?.address}</p>
-              <p><span className="font-medium">City:</span> {order.shippingAddress?.city}</p>
-              <p><span className="font-medium">Postal Code:</span> {order.shippingAddress?.postalCode}</p>
+              <p><span className="font-medium">Shipping Address:</span> {order.shippingAddress}</p>
             </div>
           </div>
         </div>
@@ -101,9 +154,22 @@ export default function OrderPage({ params }: OrderPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {order.items?.map((item: any) => (
-                  <tr key={item.id} className="border-b">
-                    <td className="px-4 py-2">{item.product.name}</td>
+                {order.items.map((item) => (
+                  <tr key={item.productId} className="border-b">
+                    <td className="px-4 py-2">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gray-200 rounded">
+                          <img
+                            src={item.productImage}
+                            alt={item.productName}
+                            className="w-full h-full object-cover rounded"
+                          />
+                        </div>
+                        <div>
+                          <p className="font-medium">{item.productName}</p>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-2">${item.price.toFixed(2)}</td>
                     <td className="px-4 py-2">{item.quantity}</td>
                     <td className="px-4 py-2">${(item.price * item.quantity).toFixed(2)}</td>

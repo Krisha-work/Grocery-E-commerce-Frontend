@@ -5,49 +5,46 @@ import { getAllOrders, updateOrderStatus } from '@/src/lib/servicers/orderServic
 import Link from 'next/link';
 import { Order as ApiOrder } from '@/src/lib/api/order';
 
-interface AdminOrder {
-  id: string;
-  status: string;
-  total: number;
-  createdAt: string;
+interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  productName: string;
+}
+
+interface AdminOrder extends Omit<ApiOrder, 'items'> {
+  items: OrderItem[];
   user: {
     id: string;
     name: string;
     email: string;
   };
-  items: {
-    id: string;
-    quantity: number;
-    price: number;
-    product: {
-      name: string;
-    };
-  }[];
 }
 
 const transformOrder = (apiOrder: ApiOrder): AdminOrder => {
   return {
     ...apiOrder,
+    items: apiOrder.items.map(item => ({
+      ...item,
+      price: item.price || 0,
+      productName: item.productName || ''
+    })),
     user: {
       id: apiOrder.userId,
-      name: '', // You'll need to fetch this from user service
-      email: '' // You'll need to fetch this from user service
-    },
-    items: apiOrder.items.map(item => ({
-      id: item.productId,
-      quantity: item.quantity,
-      price: 0, // You'll need to fetch this from product service
-      product: {
-        name: '' // You'll need to fetch this from product service
-      }
-    }))
+      name: apiOrder.userName || '',
+      email: apiOrder.userEmail || ''
+    }
   };
 };
+
+const ORDER_STATUSES = ['pending', 'processing', 'completed', 'cancelled'] as const;
+type OrderStatus = typeof ORDER_STATUSES[number];
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -66,8 +63,11 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    if (updatingStatus === orderId) return;
+    
     try {
+      setUpdatingStatus(orderId);
       await updateOrderStatus(orderId, newStatus);
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus } : order
@@ -75,6 +75,8 @@ export default function AdminOrdersPage() {
     } catch (err) {
       setError('Failed to update order status');
       console.error('Error updating order status:', err);
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
@@ -140,17 +142,20 @@ export default function AdminOrdersPage() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <select
                     value={order.status}
-                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                    onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                    disabled={updatingStatus === order.id}
                     className={`px-2 py-1 rounded-full text-sm ${
                       order.status === 'completed' ? 'bg-green-100 text-green-800' :
                       order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                       'bg-gray-100 text-gray-800'
                     }`}
                   >
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
+                    {ORDER_STATUSES.map(status => (
+                      <option key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

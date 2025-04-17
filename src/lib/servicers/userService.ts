@@ -4,11 +4,16 @@ import { UserService } from "../api/auth";
 const handleRegister = async (registerData: { email: string; password: string; username: string }) => {
     try {
         const response = await UserService.register(registerData);
-        console.log('Registration successful:', response);
         return response;
-    } catch (error) {
-        console.error('Registration error:', error);
-        return error;
+    } catch (error: any) {
+        // Extract meaningful error message from the error response
+        const errorMessage = error.response?.data?.message 
+            || error.response?.data?.error 
+            || error.message 
+            || 'Registration failed. Please try again.';
+            
+        // Throw a new error with the meaningful message
+        throw new Error(errorMessage);
     }
 };
 

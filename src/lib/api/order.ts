@@ -4,20 +4,27 @@ import apiClient from "./apiHelper";
 interface OrderItem {
   productId: string;
   quantity: number;
+  price?: number;
+  productName?: string;
+  productImage?: string;
 }
 
 interface Order {
   id: string;
   userId: string;
+  userName?: string;
+  userEmail?: string;
   items: OrderItem[];
   status: string;
   total: number;
   createdAt: string;
+  shippingAddress?: string;
   // other order fields
 }
 
 interface CreateOrderParams {
   items: OrderItem[];
+  shippingAddress: string
 }
 
 interface PaymentParams {
@@ -31,7 +38,7 @@ interface UpdateStatusParams {
 
 export const OrderService = {
   createOrder: async (data: CreateOrderParams): Promise<Order> => {
-    return apiClient.post("/orders", data);
+    return apiClient.post("/orders/create", data);
   },
 
   getUserOrders: async (): Promise<Order[]> => {

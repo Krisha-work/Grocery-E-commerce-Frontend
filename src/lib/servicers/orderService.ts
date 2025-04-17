@@ -16,7 +16,7 @@ const createOrder = async () => {
 };
 
 // Get user orders
-export const getUserOrders = async () => {
+ const getUserOrders = async () => {
   try {
     return await OrderService.getUserOrders();
   } catch (error) {
@@ -26,7 +26,7 @@ export const getUserOrders = async () => {
 };
 
 // Get order by id
-export const getOrderById = async (orderId: string) => {
+ const getOrderById = async (orderId: string) => {
   try {
     return await OrderService.getOrder(orderId);
   } catch (error) { 
@@ -59,7 +59,7 @@ const processPayment = async (orderId: string) => {
 };
 
 // Get all orders
-export const getAllOrders = async () => {
+ const getAllOrders = async () => {
   try {
     return await OrderService.getAllOrders();
   } catch (error) { 
@@ -69,7 +69,7 @@ export const getAllOrders = async () => {
 };
 
 // Update order status
-export const updateOrderStatus = async (orderId: string, status: string) => {
+ const updateOrderStatus = async (orderId: string, status: string) => {
   try {
     return await OrderService.updateOrderStatus(orderId, status);
   } catch (error) { 

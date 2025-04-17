@@ -12,6 +12,7 @@ import {
 import { User } from '../../lib/api/auth';
 import Cookies from 'js-cookie';
 import { log } from 'console';
+import { useRouter } from 'next/navigation';
 
 interface UserProfile extends User {
   isVerified: boolean;
@@ -30,8 +31,9 @@ interface ResetPasswordData {
 }
 
 const AccountPage = () => {
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
@@ -50,8 +52,19 @@ const AccountPage = () => {
   const [emailForReset, setEmailForReset] = useState('');
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    const checkAuth = async () => {
+      const authToken = Cookies.get('authToken');
+      if (!authToken) {
+        router.push('/login');
+        return;
+      }
+      await loadProfile();
+      console.log(updateData);
+      
+    };
+
+    checkAuth();
+  }, [router]);
 
   const loadProfile = async () => {
     try {
@@ -60,16 +73,21 @@ const AccountPage = () => {
       if (userProfile) {
         setProfile({
           ...userProfile,
-          isVerified: true, // This should come from the API
-          createdAt: new Date().toISOString() // This should come from the API
+          isVerified: true,
+          createdAt: new Date().toISOString()
         });
         setUpdateData({
-          username: userProfile.name,
-          email: userProfile.email,
+          username: userProfile.data.username,
+          email: userProfile.data.email,
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       setError('Failed to load profile');
+      // If unauthorized, redirect to login
+      if (err.response?.status === 401) {
+        Cookies.remove('authToken');
+        router.push('/login');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -130,7 +148,7 @@ const AccountPage = () => {
       await handleLogout();
       Cookies.remove('authToken');
       localStorage.clear();
-      window.location.href = '/login';
+      router.push('/login');
     } catch (err) {
       setError('Failed to logout');
     }
@@ -161,12 +179,12 @@ const AccountPage = () => {
             >
               Profile
             </button>
-            {/* <button
+            <button
               className={`px-4 py-2 ${activeTab === 'security' ? 'border-b-2 border-blue-500' : ''}`}
               onClick={() => setActiveTab('security')}
             >
               Security
-            </button> */}
+            </button>
           </div>
 
           {error && (
@@ -219,7 +237,7 @@ const AccountPage = () => {
             </div>
           )}
 
-          {/* {activeTab === 'security' && (
+          {activeTab === 'security' && (
             <div className="space-y-6 flex justify-center items-center gap-6">
               <div className='w-170'>
                 <h2 className="text-xl font-semibold mb-4">Reset Password</h2>
@@ -283,7 +301,7 @@ const AccountPage = () => {
                 </form>
               </div>
             </div>
-          )} */}
+          )}
         </div>
       </div>
     </div>

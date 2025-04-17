@@ -12,11 +12,16 @@ interface OrderPageProps {
   };
 }
 
-interface AdminOrderDetail {
-  id: string;
-  status: string;
-  total: number;
-  createdAt: string;
+interface OrderItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  productName: string;
+  productImage: string;
+}
+
+interface AdminOrderDetail extends Omit<ApiOrder, 'items'> {
+  items: OrderItem[];
   user: {
     id: string;
     name: string;
@@ -29,51 +34,41 @@ interface AdminOrderDetail {
     postalCode: string;
     country: string;
   };
-  items: {
-    id: string;
-    quantity: number;
-    price: number;
-    product: {
-      id: string;
-      name: string;
-      image_url: string;
-    };
-  }[];
 }
 
 const transformOrder = (apiOrder: ApiOrder): AdminOrderDetail => {
   return {
     ...apiOrder,
+    items: apiOrder.items.map(item => ({
+      ...item,
+      price: item.price || 0,
+      productName: item.productName || '',
+      productImage: item.productImage || '/placeholder.jpg'
+    })),
     user: {
       id: apiOrder.userId,
-      name: '', // You'll need to fetch this from user service
-      email: '' // You'll need to fetch this from user service
+      name: apiOrder.userName || '',
+      email: apiOrder.userEmail || ''
     },
-    shippingAddress: {
-      name: '', // You'll need to fetch this from order service
-      address: '', // You'll need to fetch this from order service
-      city: '', // You'll need to fetch this from order service
-      postalCode: '', // You'll need to fetch this from order service
-      country: '' // You'll need to fetch this from order service
-    },
-    items: apiOrder.items.map(item => ({
-      id: item.productId,
-      quantity: item.quantity,
-      price: 0, // You'll need to fetch this from product service
-      product: {
-        id: item.productId,
-        name: '', // You'll need to fetch this from product service
-        image_url: '' // You'll need to fetch this from product service
-      }
-    }))
+    shippingAddress: apiOrder.shippingAddress || {
+      name: '',
+      address: '',
+      city: '',
+      postalCode: '',
+      country: ''
+    }
   };
 };
+
+const ORDER_STATUSES = ['pending', 'processing', 'completed', 'cancelled'] as const;
+type OrderStatus = typeof ORDER_STATUSES[number];
 
 export default function AdminOrderPage({ params }: OrderPageProps) {
   const router = useRouter();
   const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -92,15 +87,18 @@ export default function AdminOrderPage({ params }: OrderPageProps) {
     fetchOrder();
   }, [params.id]);
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!order) return;
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!order || updatingStatus) return;
     
     try {
+      setUpdatingStatus(true);
       await updateOrderStatus(order.id, newStatus);
       setOrder({ ...order, status: newStatus });
     } catch (err) {
       setError('Failed to update order status');
       console.error('Error updating order status:', err);
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -151,13 +149,20 @@ export default function AdminOrderPage({ params }: OrderPageProps) {
               <p><span className="font-medium">Status:</span>
                 <select
                   value={order.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="ml-2 px-2 py-1 rounded-full text-sm"
+                  onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
+                  disabled={updatingStatus}
+                  className={`ml-2 px-2 py-1 rounded-full text-sm ${
+                    order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                    order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  {ORDER_STATUSES.map(status => (
+                    <option key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </option>
+                  ))}
                 </select>
               </p>
               <p><span className="font-medium">Date:</span> {new Date(order.createdAt).toLocaleDateString()}</p>
@@ -199,20 +204,20 @@ export default function AdminOrderPage({ params }: OrderPageProps) {
               </thead>
               <tbody>
                 {order.items.map((item) => (
-                  <tr key={item.id} className="border-b">
+                  <tr key={item.productId} className="border-b">
                     <td className="px-4 py-2">
                       <div className="flex items-center space-x-3">
                         <div className="w-12 h-12 bg-gray-200 rounded">
                           <img
-                            src={item.product.image_url || "/placeholder.jpg"}
-                            alt={item.product.name}
+                            src={item.productImage}
+                            alt={item.productName}
                             className="w-full h-full object-cover rounded"
                           />
                         </div>
                         <div>
-                          <p className="font-medium">{item.product.name}</p>
+                          <p className="font-medium">{item.productName}</p>
                           <Link
-                            href={`/admin/products/${item.product.id}`}
+                            href={`/admin/products/${item.productId}`}
                             className="text-sm text-blue-600 hover:text-blue-800"
                           >
                             View Product

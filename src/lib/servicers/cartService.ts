@@ -21,6 +21,11 @@ const getLocalCart = (): Cart => {
 const addToCart = async (productId: string, quantity: number): Promise<Cart> => {
   try {
     const item = await CartService.addToCart(Number(productId), quantity);
+    
+    if (!item) {
+      throw new Error('Failed to add item to cart - server returned empty response');
+    }
+
     const cart = getLocalCart();
     const existingItemIndex = cart.items.findIndex((i: CartItem) => i.id === productId);
     
@@ -28,34 +33,68 @@ const addToCart = async (productId: string, quantity: number): Promise<Cart> => 
       cart.items[existingItemIndex].quantity += quantity;
     } else {
       const productDetails = item.productDetails;
-      if (productDetails) {
-        cart.items.push({
-          id: productId,
-          name: productDetails.name || '',
-          price: item.price,
-          quantity: quantity,
-          image: (productDetails as unknown as ApiProduct)?.image_url
-        });
+      
+      if (!productDetails) {
+        throw new Error('Failed to add item to cart - missing product details');
       }
+
+      const product = productDetails as unknown as ApiProduct;
+      
+      cart.items.push({
+        id: productId,
+        name: product.name || 'Unknown Product',
+        price: item.price || 0,
+        quantity: quantity,
+        image: product.image_url || ''
+      });
     }
     
     cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
     localStorage.setItem('cart', JSON.stringify(cart));
     return cart;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding to cart:", error);
-    throw error;
+    
+    // Check if it's a timeout error
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    
+    // If it's a network error
+    if (!error.response) {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    // If we have a specific error message from the server, use it
+    if (error.message) {
+      throw error;
+    }
+    
+    // Generic error
+    throw new Error('Failed to add item to cart. Please try again.');
   }
 };
 
 // Update item quantity
 const updateItemQuantity = async (cartItemId: string, quantity: number): Promise<Cart> => {
   try {
+    // First update the server cart
+    await CartService.updateCartItem(Number(cartItemId), quantity);
+    const serverCart = await CartService.getCart();
+    
+    // Update local cart with server data
     const cart = getLocalCart();
     const itemIndex = cart.items.findIndex((item: CartItem) => item.id === cartItemId);
     
     if (itemIndex >= 0) {
       cart.items[itemIndex].quantity = quantity;
+      // Update price from server data if available
+      const serverItem = serverCart.cartItems?.find(item => item.id.toString() === cartItemId);
+      if (serverItem) {
+        cart.items[itemIndex].price = serverItem.price;
+      }
+      
+      // Recalculate total using most up-to-date prices
       cart.total = cart.items.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
       localStorage.setItem('cart', JSON.stringify(cart));
     }

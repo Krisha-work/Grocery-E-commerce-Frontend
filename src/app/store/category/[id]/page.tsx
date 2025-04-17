@@ -92,7 +92,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   const safeProducts = Array.isArray(products) ? products : [];
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-20">
+    <div className="container text-black mx-auto px-4 py-8 mt-20">
       <h1 className="text-3xl font-bold mb-8">{categoryName}</h1>
 
       {safeProducts.length === 0 ? (
@@ -100,7 +100,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
           <p className="text-gray-500">No products found in this category.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
           {safeProducts.map((product: Product, index: number) => {
             console.log(product, "------------");
             return (

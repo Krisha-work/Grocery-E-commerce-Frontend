@@ -5,6 +5,7 @@ import { handleRegister } from '../../../lib/servicers/userService';
 import { RegisterParams } from '@/src/lib/api/auth';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import { toastService } from '../../../lib/servicers/toastService';
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState<RegisterParams>({
@@ -35,7 +36,7 @@ const RegisterForm = () => {
     const newErrors: Partial<RegisterParams> = {};
     
     if (!formData.username.trim()) newErrors.username = 'Username is required';
-    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[_.])[a-zA-Z0-9_.]+$/.test(formData.username)) newErrors.username = 'Username can only contain letters, numbers, dots, and underscores';
+    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[_.])[a-zA-Z0-9_.]+$/.test(formData.username)) newErrors.username = 'Letters, numbers, dots, and underscores';
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email format';
     if (!formData.password.trim()) newErrors.password = 'Password is required';
@@ -56,19 +57,43 @@ const RegisterForm = () => {
 
     try {
       const response = await handleRegister(formData);
-      console.log('Registration successful:', response);
-      // Store token
-      if (response) {
-        localStorage.setItem('token', response);
+      
+      if (response?.token) {
+        // Store token securely
+        localStorage.setItem('token', response.token);
+        
+        // Show success message
+        toastService.success(response.message);
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push('/login');
+        }, 1500);
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (err: any) {
+      // Handle specific validation errors from the backend
+      if (err.response?.data?.errors) {
 
+        const backendErrors = err.response.data.errors;
+        const formattedErrors: Record<string, string> = {};
+        
+        // Map backend validation errors to form fields
+        Object.entries(backendErrors).forEach(([key, value]) => {
+          formattedErrors[key] = Array.isArray(value) ? value[0] : value as string;
+        });
+        
+        setErrors(formattedErrors);
+      } else {
+        // Set generic error message
+        setErrors({
+          form: err instanceof Error ? err.message : 'Registration failed. Please try again.'
+        });
       }
       
-      // Redirect to login or dashboard
-      // window.location.href = '/login';
-    } catch (err) {
-      setErrors({
-        form: err instanceof Error ? err.message : 'Registration failed. Please try again.'
-      });
+      // Show error toast
+      toastService.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsLoading(false);
     }

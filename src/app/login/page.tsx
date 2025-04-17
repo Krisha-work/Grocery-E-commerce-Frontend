@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { UserService, LoginParams } from '../../lib/api/auth';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import { toastService } from '../../lib/servicers/toastService';
 
 const LoginForm = () => {
   const [formData, setFormData] = useState<LoginParams>({
@@ -50,22 +51,29 @@ const LoginForm = () => {
 
     try {
       const response = await UserService.login(formData);
-      console.log('Login successful:', response.data);
-
-      // Store token in cookie and localStorage for redundancy
-
+      
+      console.log(response);
+      
       if (response.data.token) {
         Cookies.set('authToken', response.data.token, { expires: 1 }); // Expires in 1 days
         localStorage.setItem('token', response.data.token);
-        console.log(response.data.token);
+        
+        // Show success toast
+        toastService.success(response.message);
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push('/');
+        }, 1500);
       }
-
-      // Redirect to dashboard
-    //   window.location.href = '/store/products';
-    } catch (err) {
-      setErrors({
-        form: err instanceof Error ? err.message : 'Login failed. Please try again.'
-      });
+    } catch (err:any) {
+      console.log(err.response);
+      
+      const errorMessage = err instanceof Error ? err.response.data.message : 'Login failed. Please try again.';
+      setErrors({ form: errorMessage });
+      
+      // Show error toast
+      toastService.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

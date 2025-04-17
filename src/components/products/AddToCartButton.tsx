@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { CartItem } from '@/src/lib/types/cart';
 import { addToCart } from '@/src/lib/servicers/cartService';
 import { toast } from 'react-hot-toast';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Plus, Minus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 
@@ -15,7 +15,6 @@ interface AddToCartButtonProps {
     price: number;
     image?: string;
   };
-  quantity?: number;
   className?: string;
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
@@ -23,12 +22,12 @@ interface AddToCartButtonProps {
 
 export const AddToCartButton = ({
   product,
-  quantity = 1,
   className = '',
   variant = 'default',
   size = 'md',
 }: AddToCartButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const router = useRouter();
 
   const isAuthenticated = () => {
@@ -45,12 +44,20 @@ export const AddToCartButton = ({
     setIsLoading(true);
     try {
       await addToCart(product.id, quantity);
-      toast.success(`${product.name} added to cart`);
+      toast.success(`${quantity} ${quantity === 1 ? 'unit' : 'units'} of ${product.name} added to cart`);
+      setQuantity(1); // Reset quantity after successful addition
     } catch (error) {
       toast.error('Failed to add item to cart');
       console.error('Error adding to cart:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleQuantityChange = (delta: number) => {
+    const newQuantity = quantity + delta;
+    if (newQuantity >= 1) {
+      setQuantity(newQuantity);
     }
   };
 
@@ -77,21 +84,41 @@ export const AddToCartButton = ({
   };
 
   return (
-    <button
-      onClick={handleAddToCart}
-      disabled={isLoading}
-      className={`
-        flex items-center justify-center gap-2
-        rounded-md font-medium transition-colors
-        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${getVariantClasses()}
-        ${getSizeClasses()}
-        ${className}
-      `}
-    >
-      <ShoppingCart className="h-4 w-4" />
-      {isLoading ? 'Adding...' : 'Add to Cart'}
-    </button>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-center gap-2">
+        <button
+          onClick={() => handleQuantityChange(-1)}
+          disabled={quantity <= 1}
+          className="p-2 rounded-md border border-gray-300 hover:bg-gray-100 disabled:opacity-50"
+          aria-label="Decrease quantity"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <span className="w-12 text-center font-medium">{quantity}</span>
+        <button
+          onClick={() => handleQuantityChange(1)}
+          className="p-2 rounded-md border border-gray-300 hover:bg-gray-100"
+          aria-label="Increase quantity"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+      <button
+        onClick={handleAddToCart}
+        disabled={isLoading}
+        className={`
+          flex items-center justify-center gap-2
+          rounded-md font-medium transition-colors
+          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900
+          disabled:opacity-50 disabled:cursor-not-allowed
+          ${getVariantClasses()}
+          ${getSizeClasses()}
+          ${className}
+        `}
+      >
+        <ShoppingCart className="h-4 w-4" />
+        {isLoading ? 'Adding...' : 'Add to Cart'}
+      </button>
+    </div>
   );
 }; 
